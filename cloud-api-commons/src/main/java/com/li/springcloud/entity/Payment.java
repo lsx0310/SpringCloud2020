@@ -19,4 +19,6 @@ public class Payment extends Model<Payment> {
     
     private Long id;
     private String serial;
+    
+
 }

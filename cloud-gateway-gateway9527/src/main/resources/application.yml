@@ -26,8 +26,8 @@ spring:
           uri: lb://cloud-payment-service
           predicates:
             - Path=/payment/lb/**
-        - id: ws-routh
-          uri: lb:ws://cloud-payment-service
+        - id: ws_routh
+          uri: lb:ws://cloud-ws-appliction
           predicates:
             - Path=/ws/**
     loadbalancer:

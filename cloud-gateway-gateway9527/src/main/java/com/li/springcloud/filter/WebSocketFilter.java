@@ -13,6 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.*;
 
@@ -37,6 +38,7 @@ public class WebSocketFilter extends ReactiveLoadBalancerClientFilter {
         return super.getOrder();
     }
     
+   
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         URI requestUrl = exchange.getRequiredAttribute(GATEWAY_REQUEST_URL_ATTR);
@@ -56,6 +58,12 @@ public class WebSocketFilter extends ReactiveLoadBalancerClientFilter {
         System.out.println("ws的请求被修改了");
         System.out.println(requestUrl.getQuery());
         System.out.println(requestUrl.getRawQuery());
+        try {
+            exchange.getAttributes().put(GATEWAY_REQUEST_URL_ATTR,new URI("ws://localhost:1443/ws/1"));
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+    
         return chain.filter(exchange);
     }
     
