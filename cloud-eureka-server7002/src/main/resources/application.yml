@@ -1,0 +1,10 @@
+server:
+  port: 7002
+eureka:
+  instance:
+    hostname: eureka-server-centos
+  client:
+    register-with-eureka: false      #不把本机注册进服务中心
+    fetch-registry: false            #不从eureka上获取服务的注册信息
+#    service-url:
+#      defaultZone: http://192.168.1.110:7001/eureka/

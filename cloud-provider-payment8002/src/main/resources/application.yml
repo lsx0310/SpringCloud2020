@@ -1,0 +1,36 @@
+server:
+  port: 8002
+spring:
+  application:
+    name: cloud-payment-service
+  datasource:
+    username: root
+    password: 404041
+    url: jdbc:mysql://localhost:3306/springcloud2020?useUnicode=true&amp&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    #始终执行初始化，再加载SQL语句执行时设置
+    initialization-mode: always
+    type: com.alibaba.druid.pool.DruidDataSource
+
+mybatis-plus:
+  # xml
+  mapper-locations: classpath:mapper/*Mapper.xml
+  # 实体扫描，多个package用逗号或者分号分隔
+  type-aliases-package: com.fengwenyi.mp3demo.model
+  configuration:
+    # 这个配置会将执行的sql打印出来，在开发或测试的时候可以用
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+#    lazy-loading-enabled: true
+eureka:
+  client:
+    #表示是否将自己注册进EurekaServer默认为true
+    register-with-eureka: true
+    #是否从EurekaServer抓取已有的注册信息，默认为true，单节点无所谓，集群必须设置为true才能配合ribbon使用负载均衡
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:7002/eureka/
+#      defaultZone: http://192.168.163.101:7002/eureka/,http://192.168.1.110:7001/eureka/
+  instance:
+    instance-id: payment8002
+    prefer-ip-address: true
