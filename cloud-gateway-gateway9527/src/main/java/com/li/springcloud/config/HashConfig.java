@@ -34,13 +34,10 @@ public class HashConfig {
                 if (range.isEmpty()) {
                     return;
                 }
-                //任何对nodeMap的修改都需要加锁
-                synchronized (NODE_LOCK) {
-                    for (String next : range) {
-                        this.put(next);
-                    }
-                    }
+                for (String next : range) {
+                    this.put(next);
                 }
-            };
+            }
+        };
     }
 }

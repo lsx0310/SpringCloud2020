@@ -1,10 +1,12 @@
 package com.li.springcloud.hash;
 
-import cn.hutool.Hutool;
+import cn.hutool.core.lang.ConsistentHash;
 import cn.hutool.core.util.HashUtil;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 
 /**
  * @ClassName ConsistentHashing
@@ -19,33 +21,58 @@ import java.util.concurrent.atomic.AtomicInteger;
  **/
 public abstract class ConsistentHashing {
     
+    /**
+     * 是否有虚拟节点
+     */
     private boolean hasVirtualNode;
     
+    /**
+     * 存储节点的TreeMap
+     */
     private TreeMap<Integer,String> nodesMap = new TreeMap<>();
     
-    private int VIRTUAL_NODES;
+    /**
+     * 虚拟节点的个数
+     */
+    private int virtualNodes;
     
+    /**
+     * 生成虚拟节点的连接字符
+     */
     private static String CONN_STRING = "&&";
     
-    public final Object NODE_LOCK = new Object();
+    private ReentrantReadWriteLock.ReadLock readLock;
+    
+    private ReentrantReadWriteLock.WriteLock writeLock;
+    
 
     
     public ConsistentHashing() {
-        this(false,4);
+        this(false,0);
     }
     
     public ConsistentHashing(boolean hasVirtualNode) {
-        this(hasVirtualNode,4);
+        this(hasVirtualNode,0);
     }
     
-    public ConsistentHashing(boolean hasVirtualNode, int VIRTUAL_NODES) {
+    public ConsistentHashing(boolean hasVirtualNode, int nodes) {
+        if (hasVirtualNode) {
+            this.virtualNodes = nodes;
+        }
         this.hasVirtualNode = hasVirtualNode;
-        this.VIRTUAL_NODES = VIRTUAL_NODES;
+        ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+        readLock = readWriteLock.readLock();
+        writeLock = readWriteLock.writeLock();
         initNodes();
     }
     
-    protected static int hash(String Addr) {
-        return HashUtil.fnvHash(Addr);
+    /**
+     * 可以继承该方法自己实现hash算法
+     * @param addr
+     * @return
+     */
+    public int hash(String addr) {
+        return HashUtil.fnvHash(addr);
     }
     
     private String getServer(String key) {
@@ -55,16 +82,21 @@ public abstract class ConsistentHashing {
         }
         
         int hash = hash(key);
-        //得到该hash值的所有map
-        SortedMap<Integer, String> tailMap = nodesMap.tailMap(hash);
-        //如果没有比该key的hash值大的，从第一个node开始
-        if (tailMap.isEmpty()) {
-            Integer firstKey = nodesMap.firstKey();
-            return nodesMap.get(firstKey);
-        }else {
-            //第一个key就是顺时针过去离node最近的那个结点
-            Integer firstKey = tailMap.firstKey();
-            return tailMap.get(firstKey);
+        readLock.lock();
+        try {
+            //得到该hash值的所有map
+            SortedMap<Integer, String> tailMap = nodesMap.tailMap(hash);
+            //如果没有比该key的hash值大的，从第一个node开始
+            if (tailMap.isEmpty()) {
+                Integer firstKey = nodesMap.firstKey();
+                return nodesMap.get(firstKey);
+            }else {
+                //第一个key就是顺时针过去离node最近的那个结点
+                Integer firstKey = tailMap.firstKey();
+                return tailMap.get(firstKey);
+            }
+        } finally {
+            readLock.unlock();
         }
     }
     
@@ -92,37 +124,29 @@ public abstract class ConsistentHashing {
     protected abstract void initNodes();
     
     
-    public boolean isHasVirtualNode() {
-        return hasVirtualNode;
-    }
-    
-    public void setHasVirtualNode(boolean hasVirtualNode) {
-        this.hasVirtualNode = hasVirtualNode;
-    }
-    
-    protected boolean isEmpty() {
-        return nodesMap.isEmpty();
-    }
-    
     public final void put(String value) {
-        synchronized (NODE_LOCK) {
-            if (hasVirtualNode) {
-                for (int i = 0;i <= VIRTUAL_NODES;i++) {
-                    String realValue = unPeel(value, i);
-                    this.nodesMap.put(hash(realValue),realValue);
-                }
-                return;
-            }
-            int key = hash(value);
-            this.nodesMap.put(key,value);
+        //对nodesMap任何操作都需要加锁
+        writeLock.lock();
+        try {
+           if (hasVirtualNode) {
+               for (int i = 0;i <= virtualNodes;i++) {
+                   String realValue = unPeel(value, i);
+                   this.nodesMap.put(hash(realValue),realValue);
+               }
+               return;
+           }
+           int key = hash(value);
+           this.nodesMap.put(key,value);
+        } finally {
+            writeLock.unlock();
         }
     }
     
-    
     public final void remove(String value) {
-        synchronized (NODE_LOCK) {
+        writeLock.lock();
+        try {
             if (hasVirtualNode) {
-                for (int i = 1;i <= VIRTUAL_NODES;i++) {
+                for (int i = 1;i <= virtualNodes;i++) {
                     String realValue = unPeel(value, i);
                     this.nodesMap.remove(hash(realValue));
                 }
@@ -130,6 +154,8 @@ public abstract class ConsistentHashing {
             }
             int hash = hash(value);
             this.nodesMap.remove(hash);
+        } finally {
+            writeLock.unlock();
         }
     }
 }
